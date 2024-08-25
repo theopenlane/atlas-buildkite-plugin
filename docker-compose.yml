@@ -1,0 +1,10 @@
+services:
+  lint:
+    image: buildkite/plugin-linter
+    command: ['--id', 'theopenlane/atlas']
+    volumes:
+      - ".:/plugin:ro"
+  tests:
+    image: buildkite/plugin-tester
+    volumes:
+      - ".:/plugin"

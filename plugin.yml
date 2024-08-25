@@ -1,0 +1,37 @@
+name: Atlas
+description: Ariga Atlas Database Tool for use with atlasgo.io
+author: https://github.com/theopenlane
+requirements:
+  - bash
+  - curl
+configuration:
+  properties:
+    dir:
+      type: string
+      description: The URL of the migration directory to push
+    project:
+      type: string
+      description: The name (slug) of the project in Atlas Cloud
+    dev-url:
+      type: string
+      description: The URL of the dev-database to use for analysis
+    apply-env:
+      type: string
+      description: The environment to apply the migration to, defaults to turso
+    atlas-config:
+      type: string
+      description: The path to the atlas hcl config file, defaults to `file://atlas.hcl`
+    default-branch:
+      type: string
+      description: Default branch, defaults to `${BUILDKITE_PIPELINE_DEFAULT_BRANCH}`
+    step:
+      type: string
+      description: step to run, lint, migrate, push, all (runs all three). defaults to lint
+    debug:
+      type: string
+      description: debug
+  required:
+    - dir
+    - project
+    - dev-url
+  additionalProperties: false
