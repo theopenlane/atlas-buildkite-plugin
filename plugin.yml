@@ -29,7 +29,7 @@ configuration:
       description: step to run, lint, migrate, push, all (runs all three). defaults to lint
     debug:
       type: string
-      dsecription: debug
+      description: debug
   required:
     - dir
     - project
