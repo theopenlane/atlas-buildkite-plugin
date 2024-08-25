@@ -1,0 +1,16 @@
+#!/bin/bash
+
+set -o errexit # script exits when a command fails == set -e
+set -o nounset # script exits when tries to use undeclared variables == set -u
+set -o pipefail # causes pipelines to retain / set the last non-zero status
+
+# Install atlas, if not available
+which atlas || (curl -sSf https://atlasgo.sh | sh -s -- -y)
+
+# Install jq, if not available
+which jq || (apt-get install jq)
+
+# Login to atlas
+atlas login --token "${ATLAS_CLOUD_TOKEN}"
+
+exit 0
