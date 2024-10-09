@@ -8,7 +8,7 @@ steps:
 
   - label: ":rocket: Test"
     plugins:
-      docker-compose#v5.4.0:
+      docker-compose#v5.4.1:
         run: tests
         cli-version: 2
 
