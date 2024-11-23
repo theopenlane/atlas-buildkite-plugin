@@ -33,11 +33,12 @@ function main() {
     if [ "${step}" = "lint" ] || [ "${step}" = "all" ]; then
         echo +++ :database: lint and validate
 
+        lint_result_file=$(mktemp)
         # Run the lint command with the web client, and output to json
-        lint_result=$(atlas migrate lint --dev-url "${dev_url}" --dir "${dir}" -w --format "{{ json .  }}" --context "${atlas_context}" )
+        lint_result=$(atlas migrate lint --dev-url "${dev_url}" --dir "${dir}" -w --format "{{ json .  }}" --context "${atlas_context}" > "$lint_result_file" 2>&1)
 
         # Parse the results to display on the top of the buildkite job
-        lint_result="$lint_result" parse_lint_result
+        lint_result_file="$lint_result_file" parse_lint_result
 
         # Start the annotation
         echo -e "\`atlas migrate lint\` results: " | buildkite-agent annotate --context atlas
@@ -104,31 +105,33 @@ function main() {
         fi
     fi
 
+    rm -f "$lint_result_file"
+
     exit "$result"
 }
 
 
 function parse_lint_result () {
-    url=$(echo "$lint_result" | jq -r '.URL')
+    url=$(jq -r '.URL' "$lint_result_file")
 
-    num_files=$(echo "$lint_result"| jq '.Files | length')
+    num_files=$(jq '.Files | length' "$lint_result_file")
 
     # There are no files present on a successful run, abort now
     if [[ $num_files == 0 ]]; then
         return
     fi
 
-    error_results=$(echo "$lint_result" | jq '.Files[0]
+    error_results=$(jq '.Files[0]
     | select(.Reports != null)
     | .Reports
     | map(select(.Text == "destructive changes detected"))
-    | .[0].Diagnostics')
+    | .[0].Diagnostics' "$lint_result_file")
 
-    warning_results=$(echo "$lint_result" | jq '.Files[0]
+    warning_results=$(jq '.Files[0]
     | select(.Reports != null)
     | .Reports
     | map(select(.Text == "data dependent changes detected"))
-    | .[0].Diagnostics')
+    | .[0].Diagnostics' "$lint_result_file")
 
     # Display these in the logs
     echo "$warning_results" |jq
