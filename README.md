@@ -11,7 +11,7 @@ Add the following to your `pipeline.yml`:
 ```yml
 steps:
   - plugins:
-      - theopenlane/atlas#v1.0.0:
+      - theopenlane/atlas#v1.1.0:
           dir: file://db/migrations
           project: theopenlane
           dev-url: sqlite://dev?mode=memory
