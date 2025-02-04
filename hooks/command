@@ -35,7 +35,7 @@ function main() {
 
     # Use atlas env if it is set, otherwise use dev-url
     if [[ "$atlas_env" != "" ]]; then
-        atlas_flags=(--env "${atlas_env} --config ${atlas_config}")
+        atlas_flags=(--env "${atlas_env}" --config "${atlas_config}")
     elif [[ "$dev_url" != "" ]]; then
         atlas_flags=(--dev-url "${dev_url}")
     else
@@ -44,7 +44,7 @@ function main() {
     fi
 
     if [[ "$dir" != "" ]]; then
-        atlas_flags+=( --dir ${dir})
+        atlas_flags+=( --dir "${dir}")
 
     fi
 
@@ -56,13 +56,13 @@ function main() {
         # Run the lint command with the web client, and output to json
 
 
-        atlas migrate lint ${atlas_flags[@]} -w --format "{{ json .  }}" --context "${atlas_context}" > "$lint_result_file" 2>&1
+        atlas migrate lint "${atlas_flags[@]}" -w --format "{{ json .  }}" --context "${atlas_context}" > "$lint_result_file" 2>&1
 
         lintResult=$?
 
         if [[ $lintResult -ne 0 ]]; then
             echo -e  ":scream_cat: error running atlas lint\n" | buildkite-agent annotate --context "atlas" --style "error"  --append
-            cat "$lint_result_file" | buildkite-agent annotate --context "atlas" --style "error"  --append
+            buildkite-agent annotate --context "atlas" --style "error" --append < "$lint_result_file"
 
             cat "$lint_result_file"
             exit $lintResult
@@ -103,7 +103,7 @@ function main() {
         fi
 
         # Run validate and exit early, if failed
-        atlas migrate validate ${atlas_flags[@]}
+        atlas migrate validate "${atlas_flags[@]}"
         result=$?
         if [[ $result -ne 0 ]]; then
             exit "$result"
@@ -116,7 +116,7 @@ function main() {
         echo +++ :rocket: push migrations
         # only push on the default branch
         if [ "${BUILDKITE_BRANCH}" = "${default_branch}" ]; then
-            atlas migrate push "${project}" ${atlas_flags[@]} --context "${atlas_context}"
+            atlas migrate push "${project}" "${atlas_flags[@]}" --context "${atlas_context}"
             result=$?
         else
             echo not pushing migration, not running against "${default_branch}" branch
