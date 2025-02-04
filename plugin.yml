@@ -15,10 +15,13 @@ configuration:
     dev-url:
       type: string
       description: The URL of the dev-database to use for analysis
+    atlas-env:
+      type: string
+      description: The environment from atlas.hcl to use, not used if empty
     apply-env:
       type: string
-      description: The environment to apply the migration to, defaults to turso
-    atlas-config:
+      description: The environment to apply the migration to, not used if empty
+    config:
       type: string
       description: The path to the atlas hcl config file, defaults to `file://atlas.hcl`
     default-branch:
@@ -33,5 +36,4 @@ configuration:
   required:
     - dir
     - project
-    - dev-url
   additionalProperties: false
