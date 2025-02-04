@@ -113,6 +113,7 @@ EOF
   export BUILDKITE_PLUGIN_ATLAS_DIR="file://db/migrations"
   export BUILDKITE_PLUGIN_ATLAS_PROJECT="meow"
   export BUILDKITE_PLUGIN_ATLAS_STEP="all"
+  export BUILDKITE_PLUGIN_ATLAS_APPLY_ENV="neon"
   export BUILDKITE_COMMIT="24160da9f34e863b2d8fcc1fe6599d868e19f6b7"
   export CONTEXT=$(cat <<EOF
 {
@@ -126,7 +127,46 @@ EOF
     'migrate lint --dev-url $BUILDKITE_PLUGIN_ATLAS_DEV_URL --dir $BUILDKITE_PLUGIN_ATLAS_DIR -w --format "{{ json .  }}" --context "$CONTEXT" : echo lint' \
     'migrate validate --dev-url $BUILDKITE_PLUGIN_ATLAS_DEV_URL --dir $BUILDKITE_PLUGIN_ATLAS_DIR : echo validate' \
     'migrate push $BUILDKITE_PLUGIN_ATLAS_PROJECT --dev-url $BUILDKITE_PLUGIN_ATLAS_DEV_URL --dir $BUILDKITE_PLUGIN_ATLAS_DIR --context "$CONTEXT" : echo push' \
-    'migrate apply --env "turso" --config "file://atlas.hcl" : echo apply' \
+    'migrate apply --env "neon" --config "file://atlas.hcl" : echo apply' \
+
+
+  run "$PWD/hooks/command"
+
+  assert_success
+  assert_output --partial "+++ :database: lint"
+  assert_output --partial "lint"
+  assert_output --partial "validate"
+  assert_output --partial "+++ :rocket: push"
+  assert_output --partial "push"
+  assert_output --partial "apply"
+
+  unstub atlas
+}
+
+@test "do it all on main, with env" {
+  export BUILDKITE_PIPELINE_DEFAULT_BRANCH="main"
+  export BUILDKITE_BRANCH="main"
+  export BUILDKITE_PLUGIN_ATLAS_ATLAS_ENV="dev"
+  export BUILDKITE_PLUGIN_ATLAS_DEV_URL="sqlite://dev?mode=memory&_fk=1"
+  export BUILDKITE_PLUGIN_ATLAS_DIR="file://db/migrations"
+  export BUILDKITE_PLUGIN_ATLAS_CONFIG="file://db/atlas.hcl"
+  export BUILDKITE_PLUGIN_ATLAS_PROJECT="meow"
+  export BUILDKITE_PLUGIN_ATLAS_STEP="all"
+  export BUILDKITE_PLUGIN_ATLAS_APPLY_ENV="neon"
+  export BUILDKITE_COMMIT="24160da9f34e863b2d8fcc1fe6599d868e19f6b7"
+  export CONTEXT=$(cat <<EOF
+{
+    "branch": "main",
+    "commit": "24160da9f34e863b2d8fcc1fe6599d868e19f6b7"
+}
+EOF
+)
+
+  stub atlas \
+    'migrate lint --env $BUILDKITE_PLUGIN_ATLAS_ATLAS_ENV --config $BUILDKITE_PLUGIN_ATLAS_CONFIG --dir $BUILDKITE_PLUGIN_ATLAS_DIR -w --format "{{ json .  }}" --context "$CONTEXT" : echo lint' \
+    'migrate validate --env $BUILDKITE_PLUGIN_ATLAS_ATLAS_ENV --config $BUILDKITE_PLUGIN_ATLAS_CONFIG --dir $BUILDKITE_PLUGIN_ATLAS_DIR : echo validate' \
+    'migrate push $BUILDKITE_PLUGIN_ATLAS_PROJECT --env $BUILDKITE_PLUGIN_ATLAS_ATLAS_ENV --config $BUILDKITE_PLUGIN_ATLAS_CONFIG --dir $BUILDKITE_PLUGIN_ATLAS_DIR --context "$CONTEXT" : echo push' \
+    'migrate apply --env "neon" --config $BUILDKITE_PLUGIN_ATLAS_CONFIG : echo apply' \
 
 
   run "$PWD/hooks/command"
@@ -149,7 +189,7 @@ EOF
   export BUILDKITE_PLUGIN_ATLAS_DIR="file://db/migrations"
   export BUILDKITE_PLUGIN_ATLAS_PROJECT="meow"
   export BUILDKITE_PLUGIN_ATLAS_STEP="all"
-  export BUILDKITE_PLUGIN_APPLY_ENV="meow"
+  export BUILDKITE_PLUGIN_ATLAS_APPLY_ENV="meow"
   export BUILDKITE_PLUGIN_ATLAS_CONFIG="file://theopenlane-atlas.hcl"
   export BUILDKITE_COMMIT="24160da9f34e863b2d8fcc1fe6599d868e19f6b7"
   export CONTEXT=$(cat <<EOF
@@ -237,17 +277,16 @@ EOF
   assert_output --partial " BUILDKITE_PLUGIN_ATLAS_DIR: unbound variable"
 }
 
-@test "missing url" {
+
+@test "missing url and env" {
   export BUILDKITE_PIPELINE_DEFAULT_BRANCH="main"
   export BUILDKITE_BRANCH="meow"
   export BUILDKITE_PLUGIN_ATLAS_DIR="file://db/migrations"
   export BUILDKITE_PLUGIN_ATLAS_PROJECT="meow"
+  export BUILDKITE_COMMIT="24160da9f34e863b2d8fcc1fe6599d868e19f6b7"
 
   run "$PWD/hooks/command"
 
   assert_failure
-  assert_output --partial " BUILDKITE_PLUGIN_ATLAS_DEV_URL: unbound variable"
+  assert_output --partial "No atlas env or dev-url set, exiting"
 }
-
-
-

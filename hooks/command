@@ -4,9 +4,10 @@ set -o nounset # script exits when tries to use undeclared variables == set -u
 set -o pipefail # causes pipelines to retain / set the last non-zero status
 
 default_branch=${BUILDKITE_PLUGIN_ATLAS_DEFAULT_BRANCH:-${BUILDKITE_PIPELINE_DEFAULT_BRANCH}}
-dev_url=${BUILDKITE_PLUGIN_ATLAS_DEV_URL}
+dev_url=${BUILDKITE_PLUGIN_ATLAS_DEV_URL:-""}
 project=${BUILDKITE_PLUGIN_ATLAS_PROJECT}
-apply_env=${BUILDKITE_PLUGIN_APPLY_ENV:-"turso"}
+apply_env=${BUILDKITE_PLUGIN_ATLAS_APPLY_ENV:-""}
+atlas_env=${BUILDKITE_PLUGIN_ATLAS_ATLAS_ENV:-""}
 atlas_config=${BUILDKITE_PLUGIN_ATLAS_CONFIG:-"file://atlas.hcl"}
 dir=${BUILDKITE_PLUGIN_ATLAS_DIR}
 step=${BUILDKITE_PLUGIN_ATLAS_STEP:-lint}
@@ -30,13 +31,42 @@ function main() {
     local url=
     local lint_result_file=
 
+    atlas_flags=()
+
+    # Use atlas env if it is set, otherwise use dev-url
+    if [[ "$atlas_env" != "" ]]; then
+        atlas_flags=(--env "${atlas_env} --config ${atlas_config}")
+    elif [[ "$dev_url" != "" ]]; then
+        atlas_flags=(--dev-url "${dev_url}")
+    else
+        echo "No atlas env or dev-url set, exiting"
+        exit 1
+    fi
+
+    if [[ "$dir" != "" ]]; then
+        atlas_flags+=( --dir ${dir})
+
+    fi
+
     # Lint and Validate
     if [ "${step}" = "lint" ] || [ "${step}" = "all" ]; then
         echo +++ :database: lint and validate
 
         lint_result_file=$(mktemp)
         # Run the lint command with the web client, and output to json
-        atlas migrate lint --dev-url "${dev_url}" --dir "${dir}" -w --format "{{ json .  }}" --context "${atlas_context}" > "$lint_result_file" 2>&1
+
+
+        atlas migrate lint ${atlas_flags[@]} -w --format "{{ json .  }}" --context "${atlas_context}" > "$lint_result_file" 2>&1
+
+        lintResult=$?
+
+        if [[ $lintResult -ne 0 ]]; then
+            echo -e  ":scream_cat: error running atlas lint\n" | buildkite-agent annotate --context "atlas" --style "error"  --append
+            cat "$lint_result_file" | buildkite-agent annotate --context "atlas" --style "error"  --append
+
+            cat "$lint_result_file"
+            exit $lintResult
+        fi
 
         # Parse the results to display on the top of the buildkite job
         lint_result_file="$lint_result_file" parse_lint_result
@@ -73,11 +103,12 @@ function main() {
         fi
 
         # Run validate and exit early, if failed
-        atlas migrate validate --dev-url "${dev_url}" --dir "${dir}"
+        atlas migrate validate ${atlas_flags[@]}
         result=$?
         if [[ $result -ne 0 ]]; then
             exit "$result"
         fi
+
     fi
 
     # Push the migration if the step was enabled
@@ -85,7 +116,7 @@ function main() {
         echo +++ :rocket: push migrations
         # only push on the default branch
         if [ "${BUILDKITE_BRANCH}" = "${default_branch}" ]; then
-            atlas migrate push "${project}" --dev-url "${dev_url}" --dir "${dir}" --context "${atlas_context}"
+            atlas migrate push "${project}" ${atlas_flags[@]} --context "${atlas_context}"
             result=$?
         else
             echo not pushing migration, not running against "${default_branch}" branch
@@ -97,7 +128,7 @@ function main() {
     if [ "${step}" = "apply" ] || [ "${step}" = "all" ]; then
         echo +++ :shipit: apply migrations
         # only apply on the default branch
-        if [ "${BUILDKITE_BRANCH}" = "${default_branch}" ]; then
+        if [ "${BUILDKITE_BRANCH}" = "${default_branch}" ] && [ "$apply_env" != "" ] ; then
             atlas migrate apply --env "${apply_env}" --config "${atlas_config}"
             result=$?
         else
